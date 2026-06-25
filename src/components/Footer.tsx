@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left">
         <div>
           <p className="text-sm text-[var(--text-2)]">
-            Built with Next.js · Deployed on Vercel · © 2025 Kere Ekpenyong
+            Built with Next.js · © 2025 Kere Ekpenyong
           </p>
           <p className="mt-1 font-mono text-xs text-[var(--text-muted)]">
             This site is a portfolio piece — CI/CD via GitHub Actions
