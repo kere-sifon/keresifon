@@ -74,15 +74,15 @@ export default function About() {
             <figure className="mt-2 max-w-sm">
               <div className="overflow-hidden rounded-xl border border-[var(--border)]">
                 <Image
-                  src="https://res.cloudinary.com/kwesiblack/image/upload/v1598611570/portfolio/IMG_5665-2_qufbb9.jpg"
-                  alt="Portrait photograph of my daughter Ella"
-                  width={1024}
-                  height={896}
+                  src="https://res.cloudinary.com/kwesiblack/image/upload/v1767839589/DSC04684_byhpdy.jpg"
+                  alt="Black and white photograph of three young girls lying on a patterned rug, heads together, smiling up at the camera"
+                  width={1200}
+                  height={1200}
                   className="h-auto w-full"
                 />
               </div>
               <figcaption className="mt-2 font-mono text-xs text-[var(--text-muted)]">
-                Ella, on the A7III — the reason the Igbo project matters.
+                On the A7III — the reason the Igbo project matters.
               </figcaption>
             </figure>
           </div>
