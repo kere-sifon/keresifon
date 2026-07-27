@@ -19,15 +19,18 @@ spec:
       labels:
         app: keresifon
     spec:
+      # No runAsUser/fsGroup: OpenShift's restricted-v2 SCC injects a UID/GID
+      # from the namespace's allowed range. Hardcoding 1001 is rejected there.
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1001
-        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: keresifon
           # Replace with your registry/image:tag (see k8s/README.md)
           image: ghcr.io/kere-sifon/keresifon:latest
-          imagePullPolicy: IfNotPresent
+          # Mutable tags (dev/latest) require Always so new pushes are pulled.
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000

@@ -5,7 +5,7 @@ kind: Kustomization
 resources:
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
+  - route.yaml
   - hpa.yaml
 
 commonLabels:
@@ -16,4 +16,4 @@ commonLabels:
 #   kustomize edit set image ghcr.io/kere-sifon/keresifon=ghcr.io/kere-sifon/keresifon:<sha>
 images:
   - name: ghcr.io/kere-sifon/keresifon
-    newTag: latest
+    newTag: dev

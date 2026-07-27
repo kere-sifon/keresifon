@@ -30,11 +30,17 @@ RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs
 
 # Standalone output bundles a minimal server + only the node_modules it needs.
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Own files as group root (gid 0) so OpenShift's arbitrary runtime UID — which
+# always belongs to group 0 — can read/write them (see chmod g=u below).
+COPY --from=builder --chown=nextjs:0 /app/public ./public
+COPY --from=builder --chown=nextjs:0 /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:0 /app/.next/static ./.next/static
 
-USER nextjs
+# Mirror group permissions to the owner's so an arbitrary UID in group 0 works.
+RUN chmod -R g=u /app
+
+# Numeric UID keeps runAsNonRoot happy on plain k8s; OpenShift overrides it.
+USER 1001
 EXPOSE 3000
 
 CMD ["node", "server.js"]
