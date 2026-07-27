@@ -5,20 +5,19 @@ container port `3000`.
 
 ## 1. Build & push the image
 
+Always build a **multi-arch** image so it runs on both amd64 and arm64 nodes
+(OpenShift/EKS clusters are frequently arm64):
+
 ```bash
 # From the repo root
-export IMAGE=ghcr.io/kere-sifon/keresifon:latest   # change to your registry
+export IMAGE=ghcr.io/kere-sifon/keresifon:latest   # change to your registry / tag
 
-docker build -t "$IMAGE" .
-docker push "$IMAGE"
+docker buildx build --platform linux/amd64,linux/arm64 -t "$IMAGE" --push .
 ```
 
-If you build on Apple Silicon but your cluster runs amd64 nodes, build a
-multi-arch (or amd64) image:
-
-```bash
-docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
-```
+> A plain `docker build` produces a single-arch image for your local machine
+> only. On Apple Silicon that's arm64; pushing it to an amd64 cluster (or vice
+> versa) causes `ErrImagePull: no image found ... for architecture`.
 
 ## 2. Point the manifests at your image
 
