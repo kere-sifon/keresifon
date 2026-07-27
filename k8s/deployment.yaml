@@ -29,7 +29,8 @@ spec:
         - name: keresifon
           # Replace with your registry/image:tag (see k8s/README.md)
           image: ghcr.io/kere-sifon/keresifon:latest
-          imagePullPolicy: IfNotPresent
+          # Mutable tags (dev/latest) require Always so new pushes are pulled.
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 3000
