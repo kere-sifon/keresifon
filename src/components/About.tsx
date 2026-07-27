@@ -56,7 +56,12 @@ export default function About() {
               Over the last two years my work has tilted toward AI. I build and
               ship production LLM and agentic systems — LangGraph supervisor-worker
               agents on AWS Bedrock, RAG pipelines on Vertex AI, evaluated with
-              RAGAS. The through-line is full-stack ownership: from model
+              RAGAS. More recently I&apos;ve been building these agents as MCP
+              servers — a Kubernetes cost-anomaly agent and a CI-triage agent that
+              plug directly into tools like Claude Desktop — because the
+              interesting problem isn&apos;t just &ldquo;can the model reason about
+              this,&rdquo; it&apos;s &ldquo;can it act on live infrastructure
+              safely.&rdquo; The through-line is full-stack ownership: from model
               integration to CI/CD, observability, and security.
             </p>
             <p>

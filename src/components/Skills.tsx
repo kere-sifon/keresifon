@@ -4,11 +4,14 @@ const skillGroups = [
     skills: [
       "LangGraph",
       "LangChain",
+      "MCP",
       "AWS Bedrock",
       "Vertex AI RAG",
       "Gemini 2.0 Flash",
       "Claude Haiku 4.5",
+      "Anthropic API",
       "RAGAS",
+      "FastAPI",
       "FAISS",
       "SageMaker",
     ],
@@ -18,8 +21,8 @@ const skillGroups = [
     skills: ["OpenShift 4.x", "Kubernetes", "Docker", "Podman", "Helm", "Istio"],
   },
   {
-    label: "Cloud Platforms",
-    skills: ["AWS", "GCP", "Azure", "On-Prem"],
+    label: "Cloud & On-Prem",
+    skills: ["AWS", "GCP", "Azure", "OpenStack"],
   },
   {
     label: "IaC & Automation",
@@ -39,7 +42,7 @@ const skillGroups = [
   },
   {
     label: "Languages & Data",
-    skills: ["Python", "TypeScript", "Java", "Bash", "PostgreSQL", "MongoDB", "Redis"],
+    skills: ["Python", "TypeScript", "Java", "Bash", "PostgreSQL", "MySQL", "MSSQL", "MongoDB", "Redis"],
   },
 ];
 

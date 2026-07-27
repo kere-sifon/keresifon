@@ -29,7 +29,7 @@ const projects: Project[] = [
       "Production LangGraph agentic pipeline on AWS Bedrock (Claude Haiku 4.5) — typed StateGraph, native tool calling and MongoDB Atlas checkpointing for crash-resumable reasoning. The agent autonomously searches, scrapes and catalogues over 500 businesses across all 10 provinces at under $0.50 per national crawl. Live Next.js web app with a password-gated /ops dashboard and a companion iOS app on the App Store.",
     tech: ["AWS Bedrock", "LangGraph", "Claude Haiku 4.5", "MongoDB Atlas", "Next.js", "SwiftUI"],
     links: [
-      { label: "african-stores-web.vercel.app", href: "https://african-stores-web.vercel.app/", type: "external" },
+      { label: "africanstorescanada.ca", href: "https://www.africanstorescanada.ca/", type: "external" },
       { label: "App Store", href: "https://apps.apple.com/ca/app/africanstores/id6774342218", type: "appstore" },
       { label: "Repo", href: "https://github.com/kere-sifon/african-stores-agent", type: "github" },
     ],
@@ -45,6 +45,30 @@ const projects: Project[] = [
     tech: ["Vertex AI RAG", "Gemini 2.0 Flash", "text-embedding-005", "Terraform", "RAGAS", "FastAPI"],
     links: [
       { label: "Repo", href: "https://github.com/kere-sifon/igbo-rag", type: "github" },
+    ],
+  },
+  {
+    name: "CI Triage Agent",
+    kind: "Personal",
+    problem:
+      "Cutting through SAST/SCA security-scan noise so engineers only see findings that matter.",
+    outcome:
+      "A reusable GitHub Actions composite action pipes scan output through a LangGraph agent on AWS Bedrock to classify true positives vs. noise and post structured PR summaries — hardened with OIDC and SHA-pinned actions. The same triage logic is exposed as an MCP server (ci-triage-mcp), so any MCP client can query results interactively (validated via Claude Desktop). The LangGraph state machine keeps every decision auditable and reproducible.",
+    tech: ["LangGraph", "AWS Bedrock", "MCP", "GitHub Actions", "OIDC", "Python"],
+    links: [
+      { label: "Repo", href: "https://github.com/kere-sifon/Ci-mvp", type: "github" },
+    ],
+  },
+  {
+    name: "k8s-cost-agent",
+    kind: "Personal",
+    problem:
+      "Catching Kubernetes cost and resource-usage anomalies before they turn into waste.",
+    outcome:
+      "A read-only LangGraph supervisor-worker agent on AWS Bedrock that compares live cluster metrics against peer workloads in the same namespace, then drafts a plain-English explanation and remediation suggestion (rightsizing, unbounded limits, orphaned PVCs) for a human to act on — never auto-applied. Exposed as an MCP server for multi-cluster querying via Claude Desktop. Access is locked to a read-only ServiceAccount (get/list/watch only) with RBAC as code and live-binding verification.",
+    tech: ["LangGraph", "AWS Bedrock", "Kubernetes", "MCP", "RBAC", "Python"],
+    links: [
+      { label: "Repo", href: "https://github.com/kere-sifon/k8s-cost-agent", type: "github" },
     ],
   },
   {
