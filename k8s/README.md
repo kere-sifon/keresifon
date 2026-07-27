@@ -41,7 +41,7 @@ kubectl apply -k k8s/ -n portfolio
 
 ```bash
 kubectl rollout status deployment/keresifon
-kubectl get pods,svc,ingress -l app=keresifon
+oc get pods,svc,route -l app=keresifon   # kubectl on OpenShift also works
 kubectl port-forward svc/keresifon 8080:80   # then open http://localhost:8080
 ```
 
@@ -82,7 +82,7 @@ To update the app, push a new image and bump the tag in
 | ----------------- | ------------------------------------------------------------- |
 | `deployment.yaml` | 2 replicas, rolling updates, non-root, probes on `/`          |
 | `service.yaml`    | ClusterIP exposing port 80 → container 3000                   |
-| `ingress.yaml`    | nginx ingress + TLS for `keresifon.com` / `www.keresifon.com` |
+| `route.yaml`      | OpenShift Route (edge TLS), auto-generated host for local testing |
 | `hpa.yaml`        | Autoscale 2→6 pods at 70% CPU                                 |
 | `kustomization.yaml` | Ties it together; central image tag override               |
 
@@ -90,10 +90,12 @@ To update the app, push a new image and bump the tag in
 
 - The container listens on `PORT=3000` and `HOSTNAME=0.0.0.0` (set in the
   Dockerfile). The Service maps 80 → 3000.
-- `ingress.yaml` assumes an **nginx** ingress controller and (optionally)
-  cert-manager for TLS. Adjust `ingressClassName`, host names, and annotations
-  for your cluster. If you don't have cert-manager, remove the `tls:` block or
-  provide the `keresifon-tls` secret yourself.
+- `route.yaml` defines an **OpenShift Route** with edge TLS termination and
+  HTTP→HTTPS redirect. It has no `spec.host`, so OpenShift generates one for
+  local testing (e.g. `keresifon-<namespace>.apps-crc.testing`); run
+  `oc get route keresifon` to see it. For production, set `spec.host` and add a
+  cert/key to the `tls` block (or use cert-manager). On a non-OpenShift cluster,
+  use an Ingress instead.
 - The HPA requires the **metrics-server** to be installed in the cluster.
 - `readOnlyRootFilesystem` is enabled; Next.js standalone does not write to disk
   at runtime, so no writable volume is required.

@@ -1,0 +1,20 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: keresifon
+  labels:
+    app: keresifon
+spec:
+  # No host: OpenShift auto-generates one (e.g. keresifon-<ns>.apps-crc.testing)
+  # for local testing. Set spec.host to a real domain for production.
+  to:
+    kind: Service
+    name: keresifon
+    weight: 100
+  port:
+    # References the Service's named port ("http" -> container 3000).
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
