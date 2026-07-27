@@ -46,22 +46,18 @@ kubectl get pods,svc,ingress -l app=keresifon
 kubectl port-forward svc/keresifon 8080:80   # then open http://localhost:8080
 ```
 
-## Image pull secret (private ghcr package)
+## Image pull
 
-ghcr.io packages are private by default, so the cluster needs credentials to
-pull `ghcr.io/kere-sifon/keresifon`:
+The `ghcr.io/kere-sifon/keresifon` package is **public**, so no image pull
+secret is required. If you ever make it private again, add an `imagePullSecrets`
+entry to the deployment and create the secret:
 
 ```bash
-kubectl create namespace keresifon --dry-run=client -o yaml | kubectl apply -f -
 kubectl -n keresifon create secret docker-registry ghcr-pull \
   --docker-server=ghcr.io \
   --docker-username=<github-user> \
   --docker-password=<token-with-read:packages>
 ```
-
-The deployment references this secret via `imagePullSecrets`. Alternatively,
-make the package **public** in the org package settings and remove the
-`imagePullSecrets` block.
 
 ## Deploy with ArgoCD (GitOps)
 
@@ -78,10 +74,8 @@ ArgoCD then:
 - creates the `keresifon` namespace (`CreateNamespace=true`),
 - keeps the cluster in sync (`prune` + `selfHeal`).
 
-Still create the `ghcr-pull` secret above in the `keresifon` namespace (ArgoCD
-won't create registry credentials for you). To update the app, push a new image
-and bump the tag in `k8s/kustomization.yaml` — ArgoCD rolls it out on the next
-sync.
+To update the app, push a new image and bump the tag in
+`k8s/kustomization.yaml` — ArgoCD rolls it out on the next sync.
 
 ## What's included
 

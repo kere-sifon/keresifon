@@ -19,11 +19,6 @@ spec:
       labels:
         app: keresifon
     spec:
-      # Required only if the ghcr.io package is private (the default).
-      # Create it with: kubectl -n keresifon create secret docker-registry ghcr-pull \
-      #   --docker-server=ghcr.io --docker-username=<user> --docker-password=<token-with-read:packages>
-      imagePullSecrets:
-        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001
