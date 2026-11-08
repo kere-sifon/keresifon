@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# namespace.yaml is applied separately (by deploy.sh) so the CI service account
+# needs no cluster-scoped rights.
+resources:
+  - deployment.yaml
+  - service.yaml

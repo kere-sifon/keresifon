@@ -1,46 +1,31 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile:1.7
+# Build for the cluster (x86_64) from an Apple Silicon Mac:
+#   docker buildx build --platform linux/amd64 -t nexus-lan.keresifon.com/docker-hosted/keresifon:<tag> --push .
 
-# Multi-stage build for a Next.js standalone production image.
-
-FROM node:20-alpine AS base
-# libc6-compat is needed by some native deps (e.g. sharp used by next/image)
-RUN apk add --no-cache libc6-compat
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# --- Install dependencies ---
-FROM base AS deps
+RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# --- Build the app ---
-FROM base AS builder
+FROM node:20-alpine AS builder
+WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
-# --- Production runner ---
-FROM base AS runner
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
-
-RUN addgroup --system --gid 1001 nodejs \
-  && adduser --system --uid 1001 nextjs
-
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 # Standalone output bundles a minimal server + only the node_modules it needs.
-# Own files as group root (gid 0) so OpenShift's arbitrary runtime UID — which
-# always belongs to group 0 — can read/write them (see chmod g=u below).
-COPY --from=builder --chown=nextjs:0 /app/public ./public
-COPY --from=builder --chown=nextjs:0 /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:0 /app/.next/static ./.next/static
-
-# Mirror group permissions to the owner's so an arbitrary UID in group 0 works.
-RUN chmod -R g=u /app
-
-# Numeric UID keeps runAsNonRoot happy on plain k8s; OpenShift overrides it.
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 USER 1001
 EXPOSE 3000
-
 CMD ["node", "server.js"]

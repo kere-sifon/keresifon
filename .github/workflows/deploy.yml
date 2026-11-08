@@ -1,0 +1,65 @@
+name: Deploy
+
+# Build, push to the homelab Nexus registry, and roll out to homelab-k8s.
+# Runs on a self-hosted runner on the home LAN, which must have Docker (with
+# buildx), kubectl, and network access to the registry, the cluster API, and the
+# app LoadBalancer (192.168.2.242). One-time setup: deploy/ci/README.md.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing image tag to roll out (skips build). Blank = build current commit."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false # never interrupt an in-flight rollout
+
+env:
+  REGISTRY: nexus-lan.keresifon.com
+  # github-deployer cannot touch Secrets/Namespaces, so the namespace and the
+  # nexus-pull secret are created once by an admin (see deploy/ci/README.md).
+  SYNC_SECRETS: "0"
+  KUBECONFIG: ${{ github.workspace }}/.kube/config
+
+jobs:
+  deploy:
+    name: Build & roll out
+    runs-on: [self-hosted, homelab]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write deployer kubeconfig
+        run: |
+          mkdir -p "$(dirname "$KUBECONFIG")"
+          echo "${{ secrets.KUBECONFIG_HOMELAB }}" | base64 -d > "$KUBECONFIG"
+          chmod 600 "$KUBECONFIG"
+
+      - name: Log in to Nexus registry
+        uses: docker/login-action@v3
+        with:
+          registry: nexus-lan.keresifon.com
+          username: ${{ secrets.NEXUS_USERNAME }}
+          password: ${{ secrets.NEXUS_PASSWORD }}
+
+      - name: Deploy
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "Rolling out existing tag: ${{ github.event.inputs.tag }}"
+            TAG="${{ github.event.inputs.tag }}" deploy/deploy.sh apply
+          else
+            deploy/deploy.sh all
+          fi
+
+      - name: Remove kubeconfig
+        if: always()
+        run: rm -f "$KUBECONFIG"
