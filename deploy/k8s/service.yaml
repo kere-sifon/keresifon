@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: keresifon
+  namespace: keresifon
+  annotations:
+    # Pin the LAN IP so the Cloudflare tunnel mapping never has to change.
+    # Must be free and distinct from the other homelab apps (finance .241, quephase .240).
+    lbipam.cilium.io/ips: "192.168.2.242"
+spec:
+  type: LoadBalancer
+  selector: {app: keresifon}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
