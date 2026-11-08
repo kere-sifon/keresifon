@@ -1,13 +1,12 @@
 name: Deploy
 
 # Build, push to the homelab Nexus registry, and roll out to homelab-k8s.
-# Runs on a self-hosted runner on the home LAN, which must have Docker (with
-# buildx), kubectl, and network access to the registry, the cluster API, and the
-# app LoadBalancer (192.168.2.242). One-time setup: deploy/ci/README.md.
+# One-time setup (namespace, pull secret, RBAC, GitHub secrets): deploy/ci/README.md.
 on:
   push:
-    branches:
-      - main
+    branches: [main]
+    paths-ignore:
+      - "**.md"
   workflow_dispatch:
     inputs:
       tag:
@@ -15,51 +14,49 @@ on:
         required: false
         default: ""
 
+# One deploy at a time; a newer push waits rather than racing the rollout.
+concurrency:
+  group: deploy-homelab-keresifon
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false # never interrupt an in-flight rollout
-
-env:
-  REGISTRY: nexus-lan.keresifon.com
-  # github-deployer cannot touch Secrets/Namespaces, so the namespace and the
-  # nexus-pull secret are created once by an admin (see deploy/ci/README.md).
-  SYNC_SECRETS: "0"
-  KUBECONFIG: ${{ github.workspace }}/.kube/config
-
 jobs:
   deploy:
-    name: Build & roll out
-    runs-on: [self-hosted, homelab]
+    # Self-hosted runner on the home LAN (gh-runner-02). GitHub-hosted runners can't reach Nexus or the cluster.
+    runs-on: [self-hosted, linux, x64, homelab]
     timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Write deployer kubeconfig
+      - name: Log in to Nexus
+        run: echo "${{ secrets.NEXUS_PUSH_PASSWORD }}" | docker login nexus-lan.keresifon.com -u "${{ secrets.NEXUS_PUSH_USER }}" --password-stdin
+
+      - name: Kubeconfig (github-deployer, keresifon namespace only)
         run: |
-          mkdir -p "$(dirname "$KUBECONFIG")"
-          echo "${{ secrets.KUBECONFIG_HOMELAB }}" | base64 -d > "$KUBECONFIG"
-          chmod 600 "$KUBECONFIG"
+          mkdir -p "$RUNNER_TEMP/kube"
+          echo "${{ secrets.KUBE_CONFIG_B64 }}" | base64 --decode > "$RUNNER_TEMP/kube/config"
+          chmod 600 "$RUNNER_TEMP/kube/config"
+          echo "KUBECONFIG=$RUNNER_TEMP/kube/config" >> "$GITHUB_ENV"
 
-      - name: Log in to Nexus registry
-        uses: docker/login-action@v3
-        with:
-          registry: nexus-lan.keresifon.com
-          username: ${{ secrets.NEXUS_USERNAME }}
-          password: ${{ secrets.NEXUS_PASSWORD }}
-
-      - name: Deploy
+      - name: Build, push and roll out
+        env:
+          # github-deployer cannot touch Secrets/Namespaces; those are managed from the Mac.
+          SYNC_SECRETS: "0"
+          TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "Rolling out existing tag: ${{ github.event.inputs.tag }}"
-            TAG="${{ github.event.inputs.tag }}" deploy/deploy.sh apply
-          else
-            deploy/deploy.sh all
-          fi
+          chmod +x deploy/deploy.sh
+          if [ -n "$TAG" ]; then deploy/deploy.sh apply; else unset TAG; deploy/deploy.sh all; fi
 
-      - name: Remove kubeconfig
+      - name: Show state on failure
+        if: failure()
+        run: |
+          kubectl -n keresifon get pods -o wide || true
+          kubectl -n keresifon get events --sort-by=.lastTimestamp | tail -20 || true
+
+      - name: Clean up credentials
         if: always()
-        run: rm -f "$KUBECONFIG"
+        run: |
+          rm -rf "$RUNNER_TEMP/kube"
+          docker logout nexus-lan.keresifon.com || true

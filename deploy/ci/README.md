@@ -1,17 +1,19 @@
 # CI deploy pipeline
 
 `.github/workflows/deploy.yml` builds the image, pushes it to the homelab Nexus
-registry, and rolls it out to **homelab-k8s** on every merge to `main` — running
-on a **self-hosted runner** on the home LAN.
+registry, and rolls it out to **homelab-k8s** on every merge to `main`. It runs
+on the org's self-hosted runner **`gh-runner-02`** on the home LAN
+(`runs-on: [self-hosted, linux, x64, homelab]`), because GitHub-hosted runners
+can't reach Nexus or the cluster API.
 
 ```
-merge to main ──► self-hosted runner
+merge to main ──► gh-runner-02 (LAN)
                     ├─ docker login nexus-lan.keresifon.com
                     ├─ deploy/deploy.sh all   (SYNC_SECRETS=0)
                     │    ├─ docker buildx build --platform linux/amd64 --push
                     │    ├─ kubectl apply -k deploy/k8s   (as github-deployer)
                     │    └─ rollout status + curl health check
-                    └─ remove kubeconfig
+                    └─ remove kubeconfig, docker logout
 ```
 
 ## Security model
@@ -21,82 +23,69 @@ The runner authenticates as the **`github-deployer`** ServiceAccount, whose Role
 ReplicaSets, and Services, and read Pods/logs/events. It **cannot read or write
 Secrets** and has **no cluster-scoped rights**. Because of that, the pipeline runs
 with `SYNC_SECRETS=0`: the namespace and the `nexus-pull` image-pull secret are
-created once by an admin, not by CI.
+created once from the Mac, not by CI.
 
-## One-time setup (admin)
+This repo is **public** and the runner sits on the LAN. A fork PR can add its own
+workflow targeting the runner, so keep fork-PR workflows on "Require approval for
+all outside collaborators" (or restrict `gh-runner-02`'s runner group to selected
+repositories).
 
-Run these with your **admin** kubeconfig.
+## One-time setup (from the Mac, admin kubeconfig)
 
-1. **Namespace + pull secret** — either run the script locally once:
-   ```bash
-   deploy/deploy.sh secrets
-   ```
-   (creates the `keresifon` namespace and the `nexus-pull` docker-registry secret
-   from the `nexus-k8s-pull` Keychain item), or create them by hand with
-   `kubectl apply -f deploy/k8s/namespace.yaml` and
-   `kubectl -n keresifon create secret docker-registry nexus-pull ...`.
+```bash
+export KUBECONFIG="$HOME/homelab-k8s/kubeconfig"
 
-2. **RBAC** — create the deployer identity and its token:
-   ```bash
-   kubectl apply -f deploy/ci/rbac.yaml
-   ```
+# 1. Namespace + nexus-pull secret (password from the nexus-k8s-pull Keychain item)
+deploy/deploy.sh secrets
 
-3. **Deployer kubeconfig → GitHub secret**:
-   ```bash
-   deploy/ci/make-kubeconfig.sh | base64 | gh secret set KUBECONFIG_HOMELAB
-   # If the runner reaches the API server on a different address:
-   #   API_SERVER=https://192.168.2.10:6443 deploy/ci/make-kubeconfig.sh | base64 | gh secret set KUBECONFIG_HOMELAB
-   ```
+# 2. Deployer identity and its token
+kubectl apply -f deploy/ci/rbac.yaml
 
-4. **Nexus push credentials → GitHub secrets** (a user allowed to push to
-   `docker-hosted`):
-   ```bash
-   gh secret set NEXUS_USERNAME --body '<push-user>'
-   gh secret set NEXUS_PASSWORD --body '<push-password>'
-   ```
+# 3. Deployer kubeconfig -> GitHub secret (the script base64-encodes it)
+deploy/ci/make-kubeconfig.sh | gh secret set KUBE_CONFIG_B64 -R kere-sifon/keresifon
 
-5. **Self-hosted runner** — register a runner with the labels
-   **`self-hosted`** and **`homelab`** (matching `runs-on` in `deploy.yml`). It
-   must have:
-   - Docker with `buildx`, trusting `nexus-lan.keresifon.com`'s TLS cert;
-   - `kubectl`;
-   - LAN access to the Nexus registry, the cluster API server, and
-     `192.168.2.242:3000` (the health check).
+# 4. Nexus push credentials (user with docker-hosted-push; prompts for the password)
+gh secret set NEXUS_PUSH_USER     -R kere-sifon/keresifon --body kere-docker
+gh secret set NEXUS_PUSH_PASSWORD -R kere-sifon/keresifon
+```
+
+Then push to `main`, or run the **Deploy** workflow manually.
 
 ## GitHub secrets
 
-| Secret              | What it is                                                    |
-| ------------------- | ------------------------------------------------------------- |
-| `KUBECONFIG_HOMELAB`| base64 of the `github-deployer` kubeconfig (from `make-kubeconfig.sh`) |
-| `NEXUS_USERNAME`    | Nexus user with push access to `docker-hosted`                |
-| `NEXUS_PASSWORD`    | password for that user                                        |
+| Secret                | What it is                                                     |
+| --------------------- | -------------------------------------------------------------- |
+| `KUBE_CONFIG_B64`     | base64 `github-deployer` kubeconfig (from `make-kubeconfig.sh`) |
+| `NEXUS_PUSH_USER`     | Nexus user with push access to `docker-hosted`                 |
+| `NEXUS_PUSH_PASSWORD` | password for that user                                         |
 
-`NEXUS_PULL_PASSWORD` is **not** needed in CI — the pull secret is managed
-out-of-band (see step 1).
+The `k8s-pull` password is **not** stored in GitHub; the pull secret is managed
+from the Mac (step 1).
 
 ## Manual / targeted deploys
 
 `deploy.yml` also has a `workflow_dispatch` trigger. Leave `tag` blank to build
 the current commit, or pass an existing tag to roll it out without rebuilding
-(maps to `TAG=<tag> deploy/deploy.sh apply`).
+(`TAG=<tag> deploy/deploy.sh apply`).
 
 ## Rotating the deployer credentials
 
-- **Kubeconfig / token**: delete and re-apply the token secret, then regenerate:
+- **Kubeconfig / token**:
   ```bash
   kubectl -n keresifon delete secret github-deployer-token
   kubectl apply -f deploy/ci/rbac.yaml
-  deploy/ci/make-kubeconfig.sh | base64 | gh secret set KUBECONFIG_HOMELAB
+  deploy/ci/make-kubeconfig.sh | gh secret set KUBE_CONFIG_B64 -R kere-sifon/keresifon
   ```
-- **Nexus password**: update it in Nexus, then re-run `gh secret set NEXUS_PASSWORD`.
+- **Nexus password**: update it in Nexus, then re-run
+  `gh secret set NEXUS_PUSH_PASSWORD -R kere-sifon/keresifon`.
 
 ## Troubleshooting
 
-- **Job never starts** → no runner with both `self-hosted` and `homelab` labels is
-  online.
+- **`Username and password required`** at Nexus login → `NEXUS_PUSH_USER` /
+  `NEXUS_PUSH_PASSWORD` are not set on this repo (step 4).
+- **Job never starts** → `gh-runner-02` is offline, or its runner group doesn't
+  include this repo.
 - **`forbidden` on apply** → RBAC not applied, or the kubeconfig points at the
   wrong namespace/cluster; re-run steps 2–3.
-- **`ImagePullBackOff`** → the `nexus-pull` secret is missing or wrong (step 1),
-  or the runner trusts the registry cert but the nodes don't.
-- **Push denied** → `NEXUS_USERNAME`/`NEXUS_PASSWORD` lack push rights to
-  `docker-hosted`.
+- **`ImagePullBackOff`** → the `nexus-pull` secret is missing or wrong (step 1).
+- **Push denied** → the push user lacks `docker-hosted-push`.
