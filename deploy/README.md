@@ -3,7 +3,7 @@
 The site runs as a Next.js **standalone** container on **homelab-k8s**, built for
 `linux/amd64`, pushed to the self-hosted **Nexus** registry, and rolled out with
 `deploy/deploy.sh`. The same script is used locally from the Mac and by the
-GitHub Actions pipeline (`.github/workflows/deploy.yml`) on a self-hosted runner.
+GitHub Actions pipeline (`.github/workflows/deploy.yml`) on the `homelab-k8s` runner pod.
 
 ## Topology
 
@@ -79,6 +79,6 @@ TAG=<known-good-sha> deploy/deploy.sh apply
 ## CI deploy
 
 Merges to `main` trigger `.github/workflows/deploy.yml`, which runs this same
-script on the homelab self-hosted runner with `SYNC_SECRETS=0`. See
+script on the `homelab-k8s` runner with `SYNC_SECRETS=0`. See
 [`ci/README.md`](ci/README.md) for the one-time admin setup (namespace, pull
 secret, RBAC, kubeconfig secret, runner).
