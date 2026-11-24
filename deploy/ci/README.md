@@ -2,12 +2,13 @@
 
 `.github/workflows/deploy.yml` builds the image, pushes it to the homelab Nexus
 registry, and rolls it out to **homelab-k8s** on every merge to `main`. It runs
-on the org's self-hosted runner **`gh-runner-02`** on the home LAN
-(`runs-on: [self-hosted, linux, x64, homelab]`), because GitHub-hosted runners
-can't reach Nexus or the cluster API.
+on an Actions runner pod in the cluster, labeled **`homelab-k8s`**
+(`runs-on: homelab-k8s`), because GitHub-hosted runners can't reach Nexus or
+the cluster API. The runner image often has no `kubectl`; the workflow uses one
+already on `PATH` or downloads the v1.31.4 client before `deploy/deploy.sh`.
 
 ```
-merge to main ──► gh-runner-02 (LAN)
+merge to main ──► homelab-k8s runner pod (LAN)
                     ├─ docker login nexus-lan.keresifon.com
                     ├─ deploy/deploy.sh all   (SYNC_SECRETS=0)
                     │    ├─ docker buildx build --platform linux/amd64 --push
@@ -27,8 +28,8 @@ created once from the Mac, not by CI.
 
 This repo is **public** and the runner sits on the LAN. A fork PR can add its own
 workflow targeting the runner, so keep fork-PR workflows on "Require approval for
-all outside collaborators" (or restrict `gh-runner-02`'s runner group to selected
-repositories).
+all outside collaborators" (or restrict the `homelab-k8s` runner group to
+selected repositories).
 
 ## One-time setup (from the Mac, admin kubeconfig)
 
@@ -83,8 +84,8 @@ the current commit, or pass an existing tag to roll it out without rebuilding
 
 - **`Username and password required`** at Nexus login → `NEXUS_PUSH_USER` /
   `NEXUS_PUSH_PASSWORD` are not set on this repo (step 4).
-- **Job never starts** → `gh-runner-02` is offline, or its runner group doesn't
-  include this repo.
+- **Job never starts** → no runner with the `homelab-k8s` label is online, or
+  its runner group doesn't include this repo.
 - **`forbidden` on apply** → RBAC not applied, or the kubeconfig points at the
   wrong namespace/cluster; re-run steps 2–3.
 - **`ImagePullBackOff`** → the `nexus-pull` secret is missing or wrong (step 1).
